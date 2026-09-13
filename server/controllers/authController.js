@@ -23,6 +23,7 @@ const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
+    // Basic validation
     if (!name || !email || !password) {
       return res.status(400).json({
         message: "Name, email and password are required",
@@ -31,6 +32,7 @@ const registerUser = async (req, res) => {
 
     const normalizedEmail = email.toLowerCase().trim();
 
+    // Check if user already exists
     const existingUser = await User.findOne({
       email: normalizedEmail,
     });
@@ -41,6 +43,7 @@ const registerUser = async (req, res) => {
       });
     }
 
+    // Password validation
     if (password.length < 6) {
       return res.status(400).json({
         message: "Password must be at least 6 characters",
@@ -58,37 +61,28 @@ const registerUser = async (req, res) => {
       Date.now() + 30 * 60 * 1000
     );
 
-    // Create user as UNVERIFIED
-    const user = await User.create({
-      name,
-      email: normalizedEmail,
-      password: hashedPassword,
-      role: "customer",
-
-      isEmailVerified: false,
-      emailVerificationToken: verificationToken,
-      emailVerificationExpires: verificationExpires,
-    });
-
     // Gmail transporter
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      requireTLS: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_APP_PASSWORD,
       },
     });
 
-    // Verification link
+    // Create verification URL
     const verificationUrl =
       `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}&email=${encodeURIComponent(
-        user.email
+        normalizedEmail
       )}`;
 
-    // Send verification email
-    await transporter.sendMail({
+    // Send verification email FIRST
+    const mailResult =await transporter.sendMail({
       from: `"VC Mart" <${process.env.EMAIL_USER}>`,
-      to: user.email,
+      to: normalizedEmail,
       subject: "VC Mart - Verify Your Email",
       html: `
         <div style="
@@ -101,7 +95,7 @@ const registerUser = async (req, res) => {
         ">
 
           <h2 style="color:#111827;">
-            Welcome to VC Mart, ${user.name}!
+            Welcome to VC Mart, ${name}!
           </h2>
 
           <p style="color:#374151;">
@@ -149,9 +143,26 @@ const registerUser = async (req, res) => {
         </div>
       `,
     });
+    console.log("EMAIL SENT RESULT:", {
+  messageId: mailResult.messageId,
+  accepted: mailResult.accepted,
+  rejected: mailResult.rejected,
+  response: mailResult.response,
+});
 
-    // IMPORTANT:
-    // Do not issue JWT until email is verified.
+    // ONLY create user after email is successfully sent
+    const user = await User.create({
+      name,
+      email: normalizedEmail,
+      password: hashedPassword,
+      role: "customer",
+
+      isEmailVerified: false,
+      emailVerificationToken: verificationToken,
+      emailVerificationExpires: verificationExpires,
+    });
+
+    // Do not issue JWT until email is verified
     return res.status(201).json({
       message:
         "Registration successful. Please check your email to verify your account.",
