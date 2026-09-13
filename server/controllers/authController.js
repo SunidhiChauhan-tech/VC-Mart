@@ -1,0 +1,432 @@
+const User = require("../models/User");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
+
+// Generate JWT
+const generateToken = (user) => {
+  return jwt.sign(
+    {
+      id: user._id,
+      role: user.role,
+    },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "1d",
+    }
+  );
+};
+
+// SIGNUP
+const registerUser = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        message: "Name, email and password are required",
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        message: "User already exists",
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        message: "Password must be at least 6 characters",
+      });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Generate secure email verification token
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+
+    // Token valid for 30 minutes
+    const verificationExpires = new Date(
+      Date.now() + 30 * 60 * 1000
+    );
+
+    // Create user as UNVERIFIED
+    const user = await User.create({
+      name,
+      email: normalizedEmail,
+      password: hashedPassword,
+      role: "customer",
+
+      isEmailVerified: false,
+      emailVerificationToken: verificationToken,
+      emailVerificationExpires: verificationExpires,
+    });
+
+    // Gmail transporter
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_APP_PASSWORD,
+      },
+    });
+
+    // Verification link
+    const verificationUrl =
+      `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}&email=${encodeURIComponent(
+        user.email
+      )}`;
+
+    // Send verification email
+    await transporter.sendMail({
+      from: `"VC Mart" <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: "VC Mart - Verify Your Email",
+      html: `
+        <div style="
+          font-family: Arial, sans-serif;
+          max-width: 600px;
+          margin: auto;
+          padding: 30px;
+          border: 1px solid #e5e7eb;
+          border-radius: 10px;
+        ">
+
+          <h2 style="color:#111827;">
+            Welcome to VC Mart, ${user.name}!
+          </h2>
+
+          <p style="color:#374151;">
+            Thank you for creating your VC Mart account.
+          </p>
+
+          <p style="color:#374151;">
+            Please verify your email address by clicking the button below.
+          </p>
+
+          <a
+            href="${verificationUrl}"
+            style="
+              display:inline-block;
+              padding:12px 22px;
+              background:#111827;
+              color:white;
+              text-decoration:none;
+              border-radius:6px;
+              margin:15px 0;
+            "
+          >
+            Verify My Email
+          </a>
+
+          <p style="
+            margin-top:20px;
+            color:#6b7280;
+            font-size:13px;
+          ">
+            This verification link will expire in 30 minutes.
+          </p>
+
+          <p style="
+            color:#6b7280;
+            font-size:13px;
+          ">
+            If you did not create this account, you can safely ignore this email.
+          </p>
+
+          <p style="color:#374151;">
+            — VC Mart Team
+          </p>
+
+        </div>
+      `,
+    });
+
+    // IMPORTANT:
+    // Do not issue JWT until email is verified.
+    return res.status(201).json({
+      message:
+        "Registration successful. Please check your email to verify your account.",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isEmailVerified: user.isEmailVerified,
+      },
+    });
+
+  } catch (error) {
+    console.error("REGISTRATION ERROR:", error.message);
+
+    return res.status(500).json({
+      message: "Registration failed",
+    });
+  }
+};
+
+// VERIFY EMAIL
+const verifyEmail = async (req, res) => {
+  try {
+     console.log("VERIFY EMAIL API CALLED:", new Date().toISOString());
+    const { token, email } = req.query;
+
+    if (!token || !email) {
+      return res.status(400).json({
+        message: "Invalid email verification link",
+      });
+    }
+
+    const user = await User.findOne({
+      email: email.toLowerCase().trim(),
+      emailVerificationToken: token,
+      emailVerificationExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        message: "Invalid or expired email verification link",
+      });
+    }
+
+    // Mark email as verified
+    user.isEmailVerified = true;
+    user.emailVerificationToken = null;
+    user.emailVerificationExpires = null;
+
+    await user.save();
+
+    return res.status(200).json({
+      message: "Email verified successfully. You can now login.",
+    });
+
+  } catch (error) {
+    console.error("EMAIL VERIFICATION ERROR:", error.message);
+
+    return res.status(500).json({
+      message: "Unable to verify email",
+    });
+  }
+};
+
+// LOGIN
+const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Email and password are required",
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+
+    if (!passwordMatch) {
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    // EMAIL VERIFICATION CHECK
+if (user.role === "customer" && !user.isEmailVerified) {
+  return res.status(403).json({
+    message: "Please verify your email before logging in.",
+  });
+}
+
+    const token = generateToken(user);
+
+    res.status(200).json({
+      message: "Login successful",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+  console.error("LOGIN ERROR:", error.message);
+
+  res.status(500).json({
+    message: "Login failed",
+  });
+}
+};
+
+// FORGOT PASSWORD
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        message: "Email is required",
+      });
+    }
+
+    const user = await User.findOne({
+      email: email.toLowerCase().trim(),
+    });
+
+    // Don't reveal whether an account exists
+    if (!user) {
+      return res.status(200).json({
+        message: "If an account exists, a password reset link has been sent.",
+      });
+    }
+
+    // Generate secure random token
+    const resetToken = crypto.randomBytes(32).toString("hex");
+
+    // Save token + expiry (15 minutes)
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000);
+
+    await user.save();
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_APP_PASSWORD,
+      },
+    });
+
+    const resetUrl =
+      `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}&email=${encodeURIComponent(user.email)}`;
+
+    await transporter.sendMail({
+      from: `"VC Mart" <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: "VC Mart - Reset Your Password",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
+          <h2>Reset Your VC Mart Password</h2>
+
+          <p>Hello ${user.name},</p>
+
+          <p>
+            We received a request to reset your VC Mart account password.
+          </p>
+
+          <p>
+            Click the button below to create a new password:
+          </p>
+
+          <a
+            href="${resetUrl}"
+            style="
+              display:inline-block;
+              padding:12px 20px;
+              background:#111827;
+              color:white;
+              text-decoration:none;
+              border-radius:6px;
+            "
+          >
+            Reset Password
+          </a>
+
+          <p style="margin-top:20px;">
+            This link will expire in 15 minutes.
+          </p>
+
+          <p>
+            If you did not request this, you can safely ignore this email.
+          </p>
+
+          <p>— VC Mart Team</p>
+        </div>
+      `,
+    });
+
+    return res.status(200).json({
+      message: "If an account exists, a password reset link has been sent.",
+    });
+
+  } catch (error) {
+    console.error("FORGOT PASSWORD ERROR:", error.message);
+
+    return res.status(500).json({
+      message: "Unable to process password reset request",
+    });
+  }
+};
+
+
+// RESET PASSWORD
+const resetPassword = async (req, res) => {
+  try {
+    const { email, token, password } = req.body;
+
+    if (!email || !token || !password) {
+      return res.status(400).json({
+        message: "Email, token and new password are required",
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        message: "Password must be at least 6 characters",
+      });
+    }
+
+    const user = await User.findOne({
+      email: email.toLowerCase().trim(),
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        message: "Invalid or expired password reset link",
+      });
+    }
+
+    user.password = await bcrypt.hash(password, 10);
+
+    // Clear reset token after successful reset
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+
+    await user.save();
+
+    return res.status(200).json({
+      message: "Password reset successful",
+    });
+
+  } catch (error) {
+    console.error("RESET PASSWORD ERROR:", error.message);
+
+    return res.status(500).json({
+      message: "Unable to reset password",
+    });
+  }
+};
+
+module.exports = {
+  registerUser,
+  verifyEmail,
+  loginUser,
+  forgotPassword,
+  resetPassword,
+};
