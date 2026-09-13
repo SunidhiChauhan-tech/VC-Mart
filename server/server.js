@@ -11,7 +11,7 @@ const orderRoutes = require("./routes/orderRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 
 const app = express(); // 👈 YE PEHLE
-
+app.set("trust proxy", 1);
 // Connect MongoDB
 connectDB();
 
