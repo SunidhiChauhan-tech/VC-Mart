@@ -2,8 +2,9 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 
+const resend = new Resend(process.env.RESEND_API_KEY);
 // Generate JWT
 const generateToken = (user) => {
   return jwt.sign(
@@ -62,17 +63,14 @@ const registerUser = async (req, res) => {
     );
 
     // Gmail transporter
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
-      requireTLS: true,
-      family: 4,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_APP_PASSWORD,
-      },
-    });
+   const { data, error } = await resend.emails.send({
+  from: "VC Mart <onboarding@resend.dev>",
+  to: [normalizedEmail],
+  subject: "VC Mart - Verify Your Email",
+  html: `
+    ... 
+  `,
+});
 
     // Create verification URL
     const verificationUrl =
@@ -81,75 +79,79 @@ const registerUser = async (req, res) => {
       )}`;
 
     // Send verification email FIRST
-    const mailResult =await transporter.sendMail({
-      from: `"VC Mart" <${process.env.EMAIL_USER}>`,
-      to: normalizedEmail,
-      subject: "VC Mart - Verify Your Email",
-      html: `
-        <div style="
-          font-family: Arial, sans-serif;
-          max-width: 600px;
-          margin: auto;
-          padding: 30px;
-          border: 1px solid #e5e7eb;
-          border-radius: 10px;
-        ">
+    const { data: mailData, error: mailError } = await resend.emails.send({
+  from: "VC Mart <onboarding@resend.dev>",
+  to: [normalizedEmail],
+  subject: "VC Mart - Verify Your Email",
+  html: `
+    <div style="
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: auto;
+      padding: 30px;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+    ">
 
-          <h2 style="color:#111827;">
-            Welcome to VC Mart, ${name}!
-          </h2>
+      <h2 style="color:#111827;">
+        Welcome to VC Mart, ${name}!
+      </h2>
 
-          <p style="color:#374151;">
-            Thank you for creating your VC Mart account.
-          </p>
+      <p style="color:#374151;">
+        Thank you for creating your VC Mart account.
+      </p>
 
-          <p style="color:#374151;">
-            Please verify your email address by clicking the button below.
-          </p>
+      <p style="color:#374151;">
+        Please verify your email address by clicking the button below.
+      </p>
 
-          <a
-            href="${verificationUrl}"
-            style="
-              display:inline-block;
-              padding:12px 22px;
-              background:#111827;
-              color:white;
-              text-decoration:none;
-              border-radius:6px;
-              margin:15px 0;
-            "
-          >
-            Verify My Email
-          </a>
+      <a
+        href="${verificationUrl}"
+        style="
+          display:inline-block;
+          padding:12px 22px;
+          background:#111827;
+          color:white;
+          text-decoration:none;
+          border-radius:6px;
+          margin:15px 0;
+        "
+      >
+        Verify My Email
+      </a>
 
-          <p style="
-            margin-top:20px;
-            color:#6b7280;
-            font-size:13px;
-          ">
-            This verification link will expire in 30 minutes.
-          </p>
+      <p style="
+        margin-top:20px;
+        color:#6b7280;
+        font-size:13px;
+      ">
+        This verification link will expire in 30 minutes.
+      </p>
 
-          <p style="
-            color:#6b7280;
-            font-size:13px;
-          ">
-            If you did not create this account, you can safely ignore this email.
-          </p>
+      <p style="
+        color:#6b7280;
+        font-size:13px;
+      ">
+        If you did not create this account, you can safely ignore this email.
+      </p>
 
-          <p style="color:#374151;">
-            — VC Mart Team
-          </p>
+      <p style="color:#374151;">
+        — VC Mart Team
+      </p>
 
-        </div>
-      `,
-    });
-    console.log("EMAIL SENT RESULT:", {
-  messageId: mailResult.messageId,
-  accepted: mailResult.accepted,
-  rejected: mailResult.rejected,
-  response: mailResult.response,
+    </div>
+  `,
 });
+
+if (mailError) {
+  console.error("RESEND EMAIL ERROR:", mailError);
+
+  return res.status(500).json({
+    message: "Registration failed",
+  });
+}
+
+console.log("RESEND EMAIL SENT:", mailData);
 
     // ONLY create user after email is successfully sent
     const user = await User.create({
