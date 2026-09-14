@@ -345,11 +345,16 @@ router.post("/webhook", async (req, res) => {
           console.log(
             `Order payment marked as PAID: ${order._id}`
           );
-        } else {
-          console.log(
-            `No local order found for Razorpay order: ${razorpayOrderId}`
-          );
-        }
+       } else {
+  console.log(
+    `No local order found for Razorpay order: ${razorpayOrderId}. Requesting Razorpay retry.`
+  );
+
+  return res.status(500).json({
+    success: false,
+    message: "Local order not found yet",
+  });
+}
       }
     }
 
@@ -406,10 +411,15 @@ router.post("/webhook", async (req, res) => {
             `Order marked as PAID through order.paid: ${order._id}`
           );
         } else {
-          console.log(
-            `No local order found for Razorpay order: ${razorpayOrderId}`
-          );
-        }
+  console.log(
+    `No local order found for Razorpay order: ${razorpayOrderId}. Requesting Razorpay retry.`
+  );
+
+  return res.status(500).json({
+    success: false,
+    message: "Local order not found yet",
+  });
+}
       }
     }
 

@@ -2432,10 +2432,12 @@ const handlePlaceOrder = async () => {
 
       order_id: razorpayOrder.order.id,
 
-      prefill: {
-        name: form.name,
-        contact: form.phone,
-      },
+     prefill: {
+  name: form.name,
+  contact: form.phone,
+},
+
+
 
       notes: {
         city: form.city,
