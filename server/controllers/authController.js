@@ -190,7 +190,8 @@ console.log("RESEND EMAIL SENT:", mailData);
 // VERIFY EMAIL
 const verifyEmail = async (req, res) => {
   try {
-     console.log("VERIFY EMAIL API CALLED:", new Date().toISOString());
+    console.log("VERIFY EMAIL API CALLED:", new Date().toISOString());
+
     const { token, email } = req.query;
 
     if (!token || !email) {
@@ -199,10 +200,11 @@ const verifyEmail = async (req, res) => {
       });
     }
 
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // First, find the user by email
     const user = await User.findOne({
-      email: email.toLowerCase().trim(),
-      emailVerificationToken: token,
-      emailVerificationExpires: { $gt: new Date() },
+      email: normalizedEmail,
     });
 
     if (!user) {
@@ -211,17 +213,37 @@ const verifyEmail = async (req, res) => {
       });
     }
 
-    // Mark email as verified
+    // If the email was already verified,
+    // treat repeated verification requests as successful.
+    if (user.isEmailVerified) {
+      return res.status(200).json({
+        message: "Email is already verified. You can now login.",
+      });
+    }
+
+    // For an unverified user, token must match and must not be expired.
+    if (
+      user.emailVerificationToken !== token ||
+      !user.emailVerificationExpires ||
+      user.emailVerificationExpires <= new Date()
+    ) {
+      return res.status(400).json({
+        message: "Invalid or expired email verification link",
+      });
+    }
+
+    // Verify the email
     user.isEmailVerified = true;
     user.emailVerificationToken = null;
     user.emailVerificationExpires = null;
 
     await user.save();
 
+    console.log("EMAIL VERIFIED SUCCESSFULLY:", normalizedEmail);
+
     return res.status(200).json({
       message: "Email verified successfully. You can now login.",
     });
-
   } catch (error) {
     console.error("EMAIL VERIFICATION ERROR:", error.message);
 
