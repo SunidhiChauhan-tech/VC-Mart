@@ -339,61 +339,72 @@ const forgotPassword = async (req, res) => {
 
     await user.save();
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_APP_PASSWORD,
-      },
-    });
+  const resetUrl =
+  `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}&email=${encodeURIComponent(user.email)}`;
 
-    const resetUrl =
-      `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}&email=${encodeURIComponent(user.email)}`;
+const { data: mailData, error: mailError } = await resend.emails.send({
+  from: "VC Mart <onboarding@resend.dev>",
+  to: [user.email],
+  subject: "VC Mart - Reset Your Password",
+  html: `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 30px; border: 1px solid #e5e7eb; border-radius: 10px;">
 
-    await transporter.sendMail({
-      from: `"VC Mart" <${process.env.EMAIL_USER}>`,
-      to: user.email,
-      subject: "VC Mart - Reset Your Password",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
-          <h2>Reset Your VC Mart Password</h2>
+      <h2 style="color:#111827;">
+        Reset Your VC Mart Password
+      </h2>
 
-          <p>Hello ${user.name},</p>
+      <p style="color:#374151;">
+        Hello ${user.name},
+      </p>
 
-          <p>
-            We received a request to reset your VC Mart account password.
-          </p>
+      <p style="color:#374151;">
+        We received a request to reset your VC Mart account password.
+      </p>
 
-          <p>
-            Click the button below to create a new password:
-          </p>
+      <p style="color:#374151;">
+        Click the button below to create a new password:
+      </p>
 
-          <a
-            href="${resetUrl}"
-            style="
-              display:inline-block;
-              padding:12px 20px;
-              background:#111827;
-              color:white;
-              text-decoration:none;
-              border-radius:6px;
-            "
-          >
-            Reset Password
-          </a>
+      <a
+        href="${resetUrl}"
+        style="
+          display:inline-block;
+          padding:12px 22px;
+          background:#111827;
+          color:white;
+          text-decoration:none;
+          border-radius:6px;
+          margin:15px 0;
+        "
+      >
+        Reset Password
+      </a>
 
-          <p style="margin-top:20px;">
-            This link will expire in 15 minutes.
-          </p>
+      <p style="margin-top:20px; color:#6b7280; font-size:13px;">
+        This link will expire in 15 minutes.
+      </p>
 
-          <p>
-            If you did not request this, you can safely ignore this email.
-          </p>
+      <p style="color:#6b7280; font-size:13px;">
+        If you did not request this, you can safely ignore this email.
+      </p>
 
-          <p>— VC Mart Team</p>
-        </div>
-      `,
-    });
+      <p style="color:#374151;">
+        — VC Mart Team
+      </p>
+
+    </div>
+  `,
+});
+
+if (mailError) {
+  console.error("RESEND PASSWORD RESET EMAIL ERROR:", mailError);
+
+  return res.status(500).json({
+    message: "Unable to send password reset email",
+  });
+}
+
+console.log("PASSWORD RESET EMAIL SENT:", mailData);
 
     return res.status(200).json({
       message: "If an account exists, a password reset link has been sent.",
