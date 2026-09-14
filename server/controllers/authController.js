@@ -64,7 +64,7 @@ const registerUser = async (req, res) => {
 
     // Gmail transporter
    const { data, error } = await resend.emails.send({
-  from: "VC Mart <onboarding@resend.dev>",
+  from: "VC Mart <onboarding@vcmart.shop>",
   to: [normalizedEmail],
   subject: "VC Mart - Verify Your Email",
   html: `
@@ -80,7 +80,7 @@ const registerUser = async (req, res) => {
 
     // Send verification email FIRST
     const { data: mailData, error: mailError } = await resend.emails.send({
-  from: "VC Mart <onboarding@resend.dev>",
+  from: "VC Mart <onboarding@vcmart.shop>",
   to: [normalizedEmail],
   subject: "VC Mart - Verify Your Email",
   html: `
@@ -343,7 +343,7 @@ const forgotPassword = async (req, res) => {
   `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}&email=${encodeURIComponent(user.email)}`;
 
 const { data: mailData, error: mailError } = await resend.emails.send({
-  from: "VC Mart <onboarding@resend.dev>",
+  from: "VC Mart <onboarding@vcmart.shop>",
   to: [user.email],
   subject: "VC Mart - Reset Your Password",
   html: `
