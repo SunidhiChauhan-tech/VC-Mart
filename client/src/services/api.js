@@ -36,6 +36,26 @@ export const loginUser = async (credentials) => {
   return data;
 };
 
+// GET REGISTERED USER COUNTS (ADMIN DASHBOARD)
+export const getUserStats = async () => {
+  const token = localStorage.getItem("vc_token");
+
+  const response = await fetch(`${API_URL}/auth/admin/user-stats`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to fetch user stats");
+  }
+
+  return data;
+};
+
 export const getCurrentUser = async () => {
   const token = localStorage.getItem("vc_token");
 

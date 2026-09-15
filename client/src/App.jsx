@@ -13,7 +13,8 @@ import {
   getAllOrders,
   updateOrderStatus,
   createRazorpayOrder,
-  verifyRazorpayPayment
+  verifyRazorpayPayment,
+  getUserStats
 } from "./services/api";
 import {
   Search, ShoppingCart, Heart, User, Menu, X, Star, ChevronRight, ChevronLeft,
@@ -53,8 +54,44 @@ const siteConfig = {
   currency: "₹",
 };
 
+/* =========================================================================
+   HERO OFFER SLIDES — replace / add entries here any time.
+   Each slide can use an "image" (shows the photo with a dark overlay + text)
+   or omit "image" to show a plain gradient card (like the current 4 defaults).
+   ========================================================================= */
+const heroOfferSlides = [
+  {
+    id: "offer-1",
+    tag: "Limited time",
+    title: "Flat 25% off on Ethnic Wear",
+    subtitle: "Shop the festive collection",
+    image: "/images/clothing_img.png", // set to null/"" for a plain gradient slide
+  },
+  {
+    id: "offer-2",
+    tag: "New arrival",
+    title: "Genuine Bike Spare Parts",
+    subtitle: "Fast dispatch, trusted brands",
+    image: "/images/bike_img.png",
+  },
+  {
+    id: "offer-3",
+    tag: "Top deal",
+    title: "Latest Smartphones",
+    subtitle: "Starting at attractive prices, EMI available",
+    image: "/images/mobile_img (2).png",
+  },
+  {
+    id: "offer-4",
+    tag: "Free delivery",
+    title: "On orders above ₹999",
+    subtitle: "Across Charkhi Dadri and nearby areas",
+    image: "/images/vcmart_img.png",
+  },
+];
+
 // Client logo embedded here so this App.jsx can work without requiring a separate logo import.
-const BRAND_LOGO = "/images/Logo.png";
+const BRAND_LOGO = "/images/nlogo.jpeg";
 const stores = [
   {
     id: "clothing",
@@ -955,9 +992,31 @@ function Breadcrumb({ items, onNavigate }) {
    NAVBAR / FOOTER
    ========================================================================= */
 function TopBar() {
+  const message = (
+    <span style={{ display: "inline-flex", alignItems: "center" }}>
+      Free shipping on orders above {formatPrice(999)}
+      <span style={{ margin: "0 28px", opacity: 0.5 }}>•</span>
+      Wholesale &amp; reseller accounts get special pricing
+      <span style={{ margin: "0 28px", opacity: 0.5 }}>•</span>
+    </span>
+  );
+ 
   return (
-    <div style={{ background: "var(--primary)", color: "#fff", fontSize: 12.5, textAlign: "center", padding: "7px 12px" }}>
-      Free shipping on orders above {formatPrice(999)} &nbsp;&nbsp; Wholesale & reseller accounts get special pricing
+    <div style={{ background: "var(--primary)", color: "#fff", fontSize: 12.5, padding: "7px 0", overflow: "hidden", whiteSpace: "nowrap" }}>
+      <div id="uh-topbar-track" style={{ display: "inline-flex", width: "max-content" }}>
+        {message}
+        {message}
+      </div>
+      <style>{`
+        #uh-topbar-track {
+          animation: uh-marquee 4s linear infinite;
+        }
+        @keyframes uh-marquee {
+          from { transform: translateX(0); }
+          to { transform: translateX(-50%); }
+        }
+        
+      `}</style>
     </div>
   );
 }
@@ -1185,6 +1244,83 @@ function Footer({ nav }) {
 /* =========================================================================
    HOME PAGE
    ========================================================================= */
+function HeroOfferSlider({ slides }) {
+  const [active, setActive] = useState(0);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    if (!slides || slides.length <= 1) return;
+    timerRef.current = setInterval(() => {
+      setActive((i) => (i + 1) % slides.length);
+    }, 3200);
+    return () => clearInterval(timerRef.current);
+  }, [slides]);
+
+  const goTo = useCallback((i) => {
+    setActive(i);
+    if (timerRef.current) clearInterval(timerRef.current);
+  }, []);
+
+  if (!slides || slides.length === 0) return null;
+
+  return (
+    <div style={{ position: "relative", width: "100%", height: 420, borderRadius: 16, overflow: "hidden" }}>
+      {slides.map((s, i) => (
+        <div
+          key={s.id || i}
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: i === active ? 1 : 0,
+            transition: "opacity 900ms ease",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            textAlign: "center",
+            padding: 24,
+            background: s.image
+              ? `linear-gradient(180deg, rgba(85,50,30,.35), rgba(85,50,30,.75)), url(${s.image}) center/cover no-repeat`
+              : "linear-gradient(135deg, var(--primary), var(--primary-dark))",
+          }}
+        >
+          {s.tag && (
+            <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.4, color: "#fff", background: "rgba(255,255,255,.18)", padding: "5px 14px", borderRadius: 20, marginBottom: 12 }}>
+              {s.tag}
+            </span>
+          )}
+          {s.title && (
+            <h3 style={{ fontSize: 26, lineHeight: 1.2, color: "#fff", margin: 0, maxWidth: 340 }}>{s.title}</h3>
+          )}
+          {s.subtitle && (
+            <p style={{ fontSize: 14, color: "rgba(255,255,255,.85)", marginTop: 10, maxWidth: 320 }}>{s.subtitle}</p>
+          )}
+        </div>
+      ))}
+      <div style={{ position: "absolute", bottom: 16, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 7 }}>
+        {slides.map((s, i) => (
+          <button
+            key={s.id || i}
+            aria-label={`Show offer ${i + 1}`}
+            onClick={() => goTo(i)}
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              background: "#fff",
+              opacity: i === active ? 1 : 0.4,
+              transition: "opacity 300ms ease",
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Hero({ nav }) {
   return (
     <section style={{ background: "var(--primary)", color: "#fff", position: "relative", overflow: "hidden" }}>
@@ -1203,12 +1339,7 @@ function Hero({ nav }) {
             <div><p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 24, fontWeight: 700 }}>24hr</p><p style={{ fontSize: 12.5, color: "rgba(255,255,255,.65)" }}>Dispatch time</p></div>
           </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <img src="/images/clothing_img.png" alt="Clothing" style={{ width: "100%", height: 210, objectFit: "cover", borderRadius: 14, gridColumn: "1/2" }} />
-          <img src="/images/bike_img.png" alt="Bike parts" style={{ width: "100%", height: 150, objectFit: "cover", borderRadius: 14, marginTop: 30 }} />
-          <img src="/images/mobile_img (2).png" alt="Mobile Store" style={{ width: "100%", height: 150, objectFit: "cover", borderRadius: 14, marginTop: -30 }} />
-          <img src="/images/vcmart_img.png" alt="VC Mart" style={{ width: "100%", height: 210, objectFit: "cover", borderRadius: 14 }} />
-        </div>
+        <HeroOfferSlider slides={heroOfferSlides} />
       </div>
       <style>{`@media (max-width: 900px) { #uh-hero-grid { grid-template-columns: 1fr !important; } #uh-hero-grid > div:last-child { display: none !important; } }`}</style>
     </section>
@@ -1712,8 +1843,7 @@ useEffect(() => {
             <EmptyState icon={Package} title="No products found" body="Try adjusting your filters or search term to see more results." actionLabel="Clear filters" onAction={() => { setPriceMax(5000); setCategory("all"); setBrand("all"); setBikeBrand("all"); setInStockOnly(false); }} />
           ) : (
             <div className="uh-grid" style={{ gridTemplateColumns: "repeat(3,1fr)" }} id="uh-product-results-grid">
-              {list.map(p => <ProductCard key={p.id} product={p} role={role} onOpen={id => nav("product", { id })} wished={wishlist.includes(p.id)} {...handlers} />)}
-            </div>
+{list.map(p => <ProductCard key={p.id || p._id} product={p} role={role} onOpen={id => nav("product", { id: p.id || p._id })} wished={wishlist.includes(p.id || p._id)} {...handlers} />)}            </div>
              )}
              {storeTotalPages > 1 && (
   <div
@@ -3761,7 +3891,7 @@ function StatCard({ label, value, sub, icon: Icon, accent }) {
 }
 
 function MiniBarChart({ data }) {
-  const max = Math.max(...data.map(d => d.value));
+  const max = Math.max(...data.map(d => d.value), 0) || 1;
   return (
     <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 160, padding: "0 4px" }}>
       {data.map((d, i) => (
@@ -3785,7 +3915,7 @@ function AdminDashboard({ nav, products, refreshProducts }) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-  if (tab !== "orders") return;
+  if (tab !== "orders" && tab !== "dashboard") return;
 
   const fetchAllOrders = async () => {
     try {
@@ -3803,6 +3933,36 @@ function AdminDashboard({ nav, products, refreshProducts }) {
   };
 
   fetchAllOrders();
+}, [tab]);
+
+  const [userStats, setUserStats] = useState({ totalUsers: 0, customers: 0, wholesale: 0, reseller: 0 });
+  const [userStatsLoading, setUserStatsLoading] = useState(false);
+  const [userStatsError, setUserStatsError] = useState("");
+
+  useEffect(() => {
+  if (tab !== "dashboard") return;
+
+  const fetchUserStats = async () => {
+    try {
+      setUserStatsLoading(true);
+      setUserStatsError("");
+
+      const data = await getUserStats();
+      setUserStats({
+        totalUsers: data.totalUsers || 0,
+        customers: data.customers || 0,
+        wholesale: data.wholesale || 0,
+        reseller: data.reseller || 0,
+      });
+    } catch (error) {
+      console.error("Failed to fetch user stats:", error);
+      setUserStatsError(error.message || "Failed to load user stats");
+    } finally {
+      setUserStatsLoading(false);
+    }
+  };
+
+  fetchUserStats();
 }, [tab]);
 
   const [form, setForm] = useState({
@@ -3827,17 +3987,52 @@ function AdminDashboard({ nav, products, refreshProducts }) {
     isActive: true,
   });
 
-  const totalCustomers = 1240;
+  // A "valid" order counts toward sales/revenue — not cancelled, not a failed payment.
+  const isValidOrder = (o) => o.status !== "cancelled" && o.paymentStatus !== "failed";
 
-  const weekly = [
-    { label: "Mon", value: 42000 },
-    { label: "Tue", value: 38000 },
-    { label: "Wed", value: 51000 },
-    { label: "Thu", value: 47000 },
-    { label: "Fri", value: 63000 },
-    { label: "Sat", value: 71000 },
-    { label: "Sun", value: 58000 },
-  ];
+  const orderStats = useMemo(() => {
+    const now = new Date();
+
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(now.getDate() - 30);
+
+    const salesLast30d = orders
+      .filter((o) => isValidOrder(o) && new Date(o.createdAt) >= thirtyDaysAgo)
+      .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+
+    const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const days = [];
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(now.getDate() - i);
+      days.push(d);
+    }
+
+    const weekly = days.map((d) => {
+      const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayStart.getDate() + 1);
+
+      const value = orders
+        .filter((o) => {
+          if (!isValidOrder(o)) return false;
+          const created = new Date(o.createdAt);
+          return created >= dayStart && created < dayEnd;
+        })
+        .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+
+      return { label: dayLabels[d.getDay()], value };
+    });
+
+    return {
+      totalOrders: orders.length,
+      salesLast30d,
+      weekly,
+    };
+  }, [orders]);
+
+  const weekly = orderStats.weekly;
 
   const lowStock = products.filter((p) => p.stock < 20);
 
@@ -4030,15 +4225,13 @@ function AdminDashboard({ nav, products, refreshProducts }) {
           >
             <StatCard
               label="Total sales (30d)"
-              value={formatPrice(1284500)}
-              sub="+12.4% vs last month"
+              value={ordersLoading ? "…" : formatPrice(orderStats.salesLast30d)}
               icon={TrendingUp}
             />
 
             <StatCard
               label="Total orders"
-              value="1,942"
-              sub="+8.1% vs last month"
+              value={ordersLoading ? "…" : orderStats.totalOrders.toLocaleString("en-IN")}
               icon={ClipboardList}
             />
 
@@ -4050,7 +4243,7 @@ function AdminDashboard({ nav, products, refreshProducts }) {
 
             <StatCard
               label="Total customers"
-              value={totalCustomers.toLocaleString("en-IN")}
+              value={userStatsLoading ? "…" : userStats.totalUsers.toLocaleString("en-IN")}
               icon={Users}
             />
           </div>
@@ -4064,22 +4257,30 @@ function AdminDashboard({ nav, products, refreshProducts }) {
           >
             <StatCard
               label="Retail customers"
-              value="1,015"
+              value={userStatsLoading ? "…" : userStats.customers.toLocaleString("en-IN")}
               icon={User}
             />
 
             <StatCard
               label="Wholesalers"
-              value="164"
+              value={userStatsLoading ? "…" : userStats.wholesale.toLocaleString("en-IN")}
+              sub="Currently disabled — will grow once enabled"
               icon={Boxes}
             />
 
             <StatCard
               label="Resellers"
-              value="61"
+              value={userStatsLoading ? "…" : userStats.reseller.toLocaleString("en-IN")}
+              sub="Currently disabled — will grow once enabled"
               icon={TrendingUp}
             />
           </div>
+
+          {userStatsError && (
+            <p style={{ fontSize: 12.5, color: "var(--red)", marginBottom: 16 }}>
+              Couldn't load customer stats: {userStatsError}
+            </p>
+          )}
 
           <div
             className="uh-grid"
@@ -5537,4 +5738,3 @@ else if (page === "admin") {
     </div>
   );
 }
-
