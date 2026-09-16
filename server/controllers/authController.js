@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
@@ -23,14 +24,51 @@ const generateToken = (user) => {
 // SIGNUP
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const {
+  name,
+  email,
+  password,
+  accountType,
+  businessName,
+  businessType,
+  businessAddress,
+  city,
+  state,
+  pincode,
+  gstin,
+  pan,
+} = req.body;
 
     // Basic validation
-    if (!name || !email || !password) {
-      return res.status(400).json({
-        message: "Name, email and password are required",
-      });
-    }
+   if (!name || !email || !password) {
+  return res.status(400).json({
+    message: "Name, email and password are required",
+  });
+}
+
+const selectedAccountType = accountType || "retail";
+
+if (!["retail", "wholesale"].includes(selectedAccountType)) {
+  return res.status(400).json({
+    message: "Invalid account type",
+  });
+}
+
+if (selectedAccountType === "wholesale") {
+  if (
+    !businessName ||
+    !businessType ||
+    !businessAddress ||
+    !city ||
+    !state ||
+    !pincode
+  ) {
+    return res.status(400).json({
+      message:
+        "Business name, business type, address, city, state and pincode are required for wholesale registration",
+    });
+  }
+}
 
     const normalizedEmail = email.toLowerCase().trim();
 
@@ -146,27 +184,80 @@ const registerUser = async (req, res) => {
     console.log("RESEND EMAIL SENT:", mailData);
 
     // ONLY create user after email is successfully sent
-    const user = await User.create({
-      name,
-      email: normalizedEmail,
-      password: hashedPassword,
-      role: "customer",
-      isEmailVerified: false,
-      emailVerificationToken: verificationToken,
-      emailVerificationExpires: verificationExpires,
-    });
+   const user = await User.create({
+  name,
+  email: normalizedEmail,
+  password: hashedPassword,
+
+  // Wholesale user is NOT given wholesale role yet.
+  // Admin approval will change the role later.
+  role: "customer",
+
+  accountType: selectedAccountType,
+
+  wholesaleStatus:
+    selectedAccountType === "wholesale"
+      ? "pending"
+      : "none",
+
+  businessName:
+    selectedAccountType === "wholesale"
+      ? businessName.trim()
+      : "",
+
+  businessType:
+    selectedAccountType === "wholesale"
+      ? businessType.trim()
+      : "",
+
+  businessAddress:
+    selectedAccountType === "wholesale"
+      ? businessAddress.trim()
+      : "",
+
+  city:
+    selectedAccountType === "wholesale"
+      ? city.trim()
+      : "",
+
+  state:
+    selectedAccountType === "wholesale"
+      ? state.trim()
+      : "",
+
+  pincode:
+    selectedAccountType === "wholesale"
+      ? pincode.trim()
+      : "",
+
+  gstin:
+    selectedAccountType === "wholesale" && gstin
+      ? gstin.trim().toUpperCase()
+      : "",
+
+  pan:
+    selectedAccountType === "wholesale" && pan
+      ? pan.trim().toUpperCase()
+      : "",
+
+  isEmailVerified: false,
+  emailVerificationToken: verificationToken,
+  emailVerificationExpires: verificationExpires,
+});
 
     // Do not issue JWT until email is verified
     return res.status(201).json({
       message:
         "Registration successful. Please check your email to verify your account.",
       user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        isEmailVerified: user.isEmailVerified,
-      },
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  accountType: user.accountType,
+  wholesaleStatus: user.wholesaleStatus,
+  isEmailVerified: user.isEmailVerified,
+},
     });
   } catch (error) {
     console.error("REGISTRATION ERROR:", error.message);
@@ -513,10 +604,159 @@ const resetPassword = async (req, res) => {
   }
 };
 
+// ======================================================
+// ADMIN — WHOLESALE APPLICATIONS
+// ======================================================
+
+// GET PENDING WHOLESALE APPLICATIONS
+const getPendingWholesaleApplications = async (req, res) => {
+  try {
+    const applications = await User.find({
+      accountType: "wholesale",
+      wholesaleStatus: "pending",
+    })
+      .select("-password -emailVerificationToken -resetPasswordToken")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      applications,
+    });
+  } catch (error) {
+    console.error(
+      "GET PENDING WHOLESALE APPLICATIONS ERROR:",
+      error.message
+    );
+
+    return res.status(500).json({
+      message: "Failed to fetch wholesale applications",
+    });
+  }
+};
+
+
+// APPROVE WHOLESALE APPLICATION
+const approveWholesaleApplication = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        message: "Invalid user ID",
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    if (
+      user.accountType !== "wholesale" ||
+      user.wholesaleStatus !== "pending"
+    ) {
+      return res.status(400).json({
+        message: "This wholesale application is not pending",
+      });
+    }
+
+    // Give wholesale role only after admin approval
+    user.role = "wholesale";
+    user.wholesaleStatus = "approved";
+
+    await user.save();
+
+    return res.status(200).json({
+      message: "Wholesale application approved successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        accountType: user.accountType,
+        wholesaleStatus: user.wholesaleStatus,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "APPROVE WHOLESALE APPLICATION ERROR:",
+      error.message
+    );
+
+    return res.status(500).json({
+      message: "Failed to approve wholesale application",
+    });
+  }
+};
+
+
+// REJECT WHOLESALE APPLICATION
+const rejectWholesaleApplication = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        message: "Invalid user ID",
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    if (
+      user.accountType !== "wholesale" ||
+      user.wholesaleStatus !== "pending"
+    ) {
+      return res.status(400).json({
+        message: "This wholesale application is not pending",
+      });
+    }
+
+    // Keep user as normal customer after rejection
+    user.role = "customer";
+    user.wholesaleStatus = "rejected";
+
+    await user.save();
+
+    return res.status(200).json({
+      message: "Wholesale application rejected",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        accountType: user.accountType,
+        wholesaleStatus: user.wholesaleStatus,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "REJECT WHOLESALE APPLICATION ERROR:",
+      error.message
+    );
+
+    return res.status(500).json({
+      message: "Failed to reject wholesale application",
+    });
+  }
+};
+
 module.exports = {
   registerUser,
   verifyEmail,
   loginUser,
   forgotPassword,
   resetPassword,
+
+  getPendingWholesaleApplications,
+  approveWholesaleApplication,
+  rejectWholesaleApplication,
 };

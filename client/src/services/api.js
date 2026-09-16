@@ -56,6 +56,83 @@ export const getUserStats = async () => {
   return data;
 };
 
+// GET PENDING WHOLESALE APPLICATIONS
+export const getPendingWholesaleApplications = async () => {
+  const token = localStorage.getItem("vc_token");
+
+  const response = await fetch(
+    `${API_URL}/auth/admin/wholesale/pending`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Failed to fetch wholesale applications"
+    );
+  }
+
+  return data.applications || [];
+};
+
+
+// APPROVE WHOLESALE APPLICATION
+export const approveWholesaleApplication = async (userId) => {
+  const token = localStorage.getItem("vc_token");
+
+  const response = await fetch(
+    `${API_URL}/auth/admin/wholesale/${userId}/approve`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Failed to approve wholesale application"
+    );
+  }
+
+  return data;
+};
+
+
+// REJECT WHOLESALE APPLICATION
+export const rejectWholesaleApplication = async (userId) => {
+  const token = localStorage.getItem("vc_token");
+
+  const response = await fetch(
+    `${API_URL}/auth/admin/wholesale/${userId}/reject`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Failed to reject wholesale application"
+    );
+  }
+
+  return data;
+};
+
 export const getCurrentUser = async () => {
   const token = localStorage.getItem("vc_token");
 

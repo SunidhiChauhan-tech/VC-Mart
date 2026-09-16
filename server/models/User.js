@@ -47,6 +47,68 @@ resetPasswordExpires: {
   default: null,
 },
 
+    accountType: {
+      type: String,
+      enum: ["retail", "wholesale"],
+      default: "retail",
+    },
+
+    wholesaleStatus: {
+      type: String,
+      enum: ["none", "pending", "approved", "rejected"],
+      default: "none",
+    },
+
+    businessName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    businessType: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    businessAddress: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    city: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    state: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    pincode: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    gstin: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: "",
+    },
+
+    pan: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: "",
+    },
+
     role: {
       type: String,
       enum: ["customer", "admin", "wholesale", "reseller"],

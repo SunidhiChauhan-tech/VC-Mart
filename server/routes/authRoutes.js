@@ -2,10 +2,13 @@ const express = require("express");
 
 const {
   registerUser,
-   verifyEmail,
+  verifyEmail,
   loginUser,
   forgotPassword,
   resetPassword,
+  getPendingWholesaleApplications,
+  approveWholesaleApplication,
+  rejectWholesaleApplication,
 } = require("../controllers/authController");
 
 const User = require("../models/User");
@@ -31,6 +34,34 @@ router.get("/admin-test", authMiddleware, adminMiddleware, (req, res) => {
     user: req.user,
   });
 });
+
+// ======================================================
+// ADMIN — WHOLESALE APPLICATIONS
+// ======================================================
+
+// Get all pending wholesale applications
+router.get(
+  "/admin/wholesale/pending",
+  authMiddleware,
+  adminMiddleware,
+  getPendingWholesaleApplications
+);
+
+// Approve wholesale application
+router.patch(
+  "/admin/wholesale/:id/approve",
+  authMiddleware,
+  adminMiddleware,
+  approveWholesaleApplication
+);
+
+// Reject wholesale application
+router.patch(
+  "/admin/wholesale/:id/reject",
+  authMiddleware,
+  adminMiddleware,
+  rejectWholesaleApplication
+);
 
 // ======================================================
 // ADMIN — REGISTERED USER COUNTS (read-only, for dashboard)

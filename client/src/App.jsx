@@ -14,7 +14,10 @@ import {
   updateOrderStatus,
   createRazorpayOrder,
   verifyRazorpayPayment,
-  getUserStats
+  getUserStats,
+  getPendingWholesaleApplications,
+approveWholesaleApplication,
+rejectWholesaleApplication
 } from "./services/api";
 import {
   Search, ShoppingCart, Heart, User, Menu, X, Star, ChevronRight, ChevronLeft,
@@ -3102,7 +3105,20 @@ function VerifyEmailPage({ nav }) {
    ========================================================================= */
 function AuthPage({ nav, login }) {
   const [mode, setMode] = useState("login");
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [form, setForm] = useState({
+  name: "",
+  email: "",
+  password: "",
+  accountType: "retail",
+  businessName: "",
+  businessType: "",
+  businessAddress: "",
+  city: "",
+  state: "",
+  pincode: "",
+  gstin: "",
+  pan: "",
+});
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
@@ -3121,6 +3137,25 @@ function AuthPage({ nav, login }) {
     return;
   }
 
+  if (
+  mode === "register" &&
+  form.accountType === "wholesale"
+) {
+  if (
+    !form.businessName.trim() ||
+    !form.businessType.trim() ||
+    !form.businessAddress.trim() ||
+    !form.city.trim() ||
+    !form.state.trim() ||
+    !form.pincode.trim()
+  ) {
+    setError(
+      "Please fill all required business details for wholesale registration."
+    );
+    return;
+  }
+}
+
   try {
     setLoading(true);
     setError("");
@@ -3130,11 +3165,20 @@ function AuthPage({ nav, login }) {
     // REGISTER
     // =========================
     if (mode === "register") {
-      await registerUser({
-        name: form.name.trim(),
-        email: form.email.trim(),
-        password: form.password,
-      });
+     await registerUser({
+  name: form.name.trim(),
+  email: form.email.trim(),
+  password: form.password,
+  accountType: form.accountType,
+  businessName: form.businessName.trim(),
+  businessType: form.businessType.trim(),
+  businessAddress: form.businessAddress.trim(),
+  city: form.city.trim(),
+  state: form.state.trim(),
+  pincode: form.pincode.trim(),
+  gstin: form.gstin.trim(),
+  pan: form.pan.trim(),
+});
 
       // Registration successful
       // Auto login nahi hoga
@@ -3143,11 +3187,20 @@ function AuthPage({ nav, login }) {
 );
       setMode("login");
 
-      setForm({
-        name: "",
-        email: form.email,
-        password: "",
-      });
+     setForm({
+  name: "",
+  email: form.email,
+  password: "",
+  accountType: "retail",
+  businessName: "",
+  businessType: "",
+  businessAddress: "",
+  city: "",
+  state: "",
+  pincode: "",
+  gstin: "",
+  pan: "",
+});
 
       return;
     }
@@ -3343,6 +3396,183 @@ if (mode === "forgot") {
         </div>
         <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {mode === "register" && (<div><label className="uh-label">Full name</label><input className="uh-input" value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Your name" /></div>)}
+          {mode === "register" && (
+  <>
+    <div>
+      <label className="uh-label">Account Type</label>
+
+      <select
+        className="uh-input"
+        value={form.accountType}
+        onChange={(e) =>
+          setForm({
+            ...form,
+            accountType: e.target.value,
+          })
+        }
+      >
+        <option value="retail">Retail Customer</option>
+        <option value="wholesale">Wholesale Account</option>
+      </select>
+    </div>
+
+    {form.accountType === "wholesale" && (
+      <>
+        <div
+          style={{
+            padding: "12px 14px",
+            background: "var(--bg)",
+            border: "1px solid var(--border)",
+            borderRadius: 10,
+            fontSize: 12.5,
+            lineHeight: 1.5,
+            color: "var(--ink-soft)",
+          }}
+        >
+          <strong style={{ color: "var(--ink)" }}>
+            Wholesale Registration
+          </strong>
+          <br />
+          Submit your business details. Your wholesale account will
+          be activated after admin approval.
+        </div>
+
+        <div>
+          <label className="uh-label">Business / Shop Name</label>
+          <input
+            className="uh-input"
+            value={form.businessName}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                businessName: e.target.value,
+              })
+            }
+            placeholder="Your business name"
+          />
+        </div>
+
+        <div>
+          <label className="uh-label">Business Type</label>
+          <select
+            className="uh-input"
+            value={form.businessType}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                businessType: e.target.value,
+              })
+            }
+          >
+            <option value="">Select business type</option>
+            <option value="Retailer">Retailer</option>
+            <option value="Wholesaler">Wholesaler</option>
+            <option value="Distributor">Distributor</option>
+            <option value="Reseller">Reseller</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="uh-label">Business Address</label>
+          <textarea
+            className="uh-input"
+            value={form.businessAddress}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                businessAddress: e.target.value,
+              })
+            }
+            placeholder="Complete business address"
+            rows={3}
+            style={{ resize: "vertical" }}
+          />
+        </div>
+
+        <div>
+          <label className="uh-label">City</label>
+          <input
+            className="uh-input"
+            value={form.city}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                city: e.target.value,
+              })
+            }
+            placeholder="City"
+          />
+        </div>
+
+        <div>
+          <label className="uh-label">State</label>
+          <input
+            className="uh-input"
+            value={form.state}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                state: e.target.value,
+              })
+            }
+            placeholder="State"
+          />
+        </div>
+
+        <div>
+          <label className="uh-label">Pincode</label>
+          <input
+            className="uh-input"
+            value={form.pincode}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                pincode: e.target.value,
+              })
+            }
+            placeholder="Pincode"
+            inputMode="numeric"
+            maxLength={6}
+          />
+        </div>
+
+        <div>
+          <label className="uh-label">
+            GSTIN <span style={{ color: "var(--muted)" }}>(Optional)</span>
+          </label>
+          <input
+            className="uh-input"
+            value={form.gstin}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                gstin: e.target.value.toUpperCase(),
+              })
+            }
+            placeholder="GSTIN"
+          />
+        </div>
+
+        <div>
+          <label className="uh-label">
+            PAN <span style={{ color: "var(--muted)" }}>(Optional)</span>
+          </label>
+          <input
+            className="uh-input"
+            value={form.pan}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                pan: e.target.value.toUpperCase(),
+              })
+            }
+            placeholder="PAN"
+          />
+        </div>
+      </>
+    )}
+  </>
+)}
           <div><label className="uh-label">Email</label><input type="email" className="uh-input" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="you@email.com" /></div>
           <div><label className="uh-label">Password</label><input type="password" className="uh-input" value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder="Create a password" /></div>
           {mode === "login" && (
@@ -3905,6 +4135,22 @@ function MiniBarChart({ data }) {
 }
 
 function AdminDashboard({ nav, products, refreshProducts }) {
+  const customerTableHeaderStyle = {
+  padding: "14px 16px",
+  textAlign: "left",
+  fontSize: 12,
+  fontWeight: 800,
+  color: "#475569",
+  textTransform: "uppercase",
+  letterSpacing: "0.04em",
+};
+
+const customerTableCellStyle = {
+  padding: "16px",
+  fontSize: 14,
+  color: "#0f172a",
+  verticalAlign: "top",
+};
   const [tab, setTab] = useState("dashboard");
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
@@ -3936,6 +4182,10 @@ function AdminDashboard({ nav, products, refreshProducts }) {
 }, [tab]);
 
   const [userStats, setUserStats] = useState({ totalUsers: 0, customers: 0, wholesale: 0, reseller: 0 });
+  const [wholesaleApplications, setWholesaleApplications] = useState([]);
+const [wholesaleLoading, setWholesaleLoading] = useState(false);
+const [wholesaleError, setWholesaleError] = useState("");
+const [wholesaleActionLoading, setWholesaleActionLoading] = useState("");
   const [userStatsLoading, setUserStatsLoading] = useState(false);
   const [userStatsError, setUserStatsError] = useState("");
 
@@ -3964,6 +4214,76 @@ function AdminDashboard({ nav, products, refreshProducts }) {
 
   fetchUserStats();
 }, [tab]);
+
+useEffect(() => {
+  if (tab !== "customers") return;
+
+  const fetchWholesaleApplications = async () => {
+    try {
+      setWholesaleLoading(true);
+      setWholesaleError("");
+
+      const applications = await getPendingWholesaleApplications();
+
+      setWholesaleApplications(applications || []);
+    } catch (error) {
+      console.error("Failed to fetch wholesale applications:", error);
+      setWholesaleError(
+        error.message || "Failed to load wholesale applications"
+      );
+    } finally {
+      setWholesaleLoading(false);
+    }
+  };
+
+  fetchWholesaleApplications();
+}, [tab]);
+
+const handleWholesaleApprove = async (userId) => {
+  try {
+    setWholesaleActionLoading(userId);
+
+    await approveWholesaleApplication(userId);
+
+    // Remove approved application from pending list
+    setWholesaleApplications((current) =>
+      current.filter((application) => application._id !== userId)
+    );
+
+    alert("Wholesale application approved successfully.");
+  } catch (error) {
+    console.error("Failed to approve wholesale application:", error);
+
+    alert(
+      error.message || "Failed to approve wholesale application"
+    );
+  } finally {
+    setWholesaleActionLoading("");
+  }
+};
+
+const handleWholesaleReject = async (userId) => {
+  try {
+    setWholesaleActionLoading(userId);
+
+    await rejectWholesaleApplication(userId);
+
+    // Remove rejected application from pending list
+    setWholesaleApplications((current) =>
+      current.filter((application) => application._id !== userId)
+    );
+
+    alert("Wholesale application rejected.");
+  } catch (error) {
+    console.error("Failed to reject wholesale application:", error);
+
+    alert(
+      error.message || "Failed to reject wholesale application"
+    );
+  } finally {
+    setWholesaleActionLoading("");
+  }
+};
 
   const [form, setForm] = useState({
     name: "",
@@ -5320,11 +5640,242 @@ function AdminDashboard({ nav, products, refreshProducts }) {
       {tab}
     </h1>
 
-    <EmptyState
-      icon={Sparkles}
-      title={`${tab.charAt(0).toUpperCase() + tab.slice(1)} module`}
-      body="This admin section is scaffolded and ready to connect to live data once the backend API is available."
-    />
+    {tab === "customers" ? (
+  <div>
+    {wholesaleLoading ? (
+      <div
+        style={{
+          padding: 30,
+          textAlign: "center",
+          color: "#64748b",
+        }}
+      >
+        Loading wholesale applications...
+      </div>
+    ) : wholesaleError ? (
+      <div
+        style={{
+          padding: 20,
+          borderRadius: 12,
+          background: "#fef2f2",
+          color: "#b91c1c",
+        }}
+      >
+        {wholesaleError}
+      </div>
+    ) : wholesaleApplications.length === 0 ? (
+      <div
+        style={{
+          padding: 40,
+          textAlign: "center",
+          border: "1px solid #e2e8f0",
+          borderRadius: 14,
+          background: "#ffffff",
+        }}
+      >
+        <h3 style={{ marginBottom: 8 }}>
+          No Pending Wholesale Applications
+        </h3>
+
+        <p
+          style={{
+            margin: 0,
+            color: "#64748b",
+          }}
+        >
+          New wholesale registrations will appear here for approval.
+        </p>
+      </div>
+    ) : (
+      <div
+        style={{
+          overflowX: "auto",
+          border: "1px solid #e2e8f0",
+          borderRadius: 14,
+          background: "#ffffff",
+        }}
+      >
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            minWidth: 950,
+          }}
+        >
+          <thead>
+            <tr
+              style={{
+                background: "#f8fafc",
+                borderBottom: "1px solid #e2e8f0",
+              }}
+            >
+              <th style={customerTableHeaderStyle}>Applicant</th>
+              <th style={customerTableHeaderStyle}>Business</th>
+              <th style={customerTableHeaderStyle}>Location</th>
+              <th style={customerTableHeaderStyle}>GSTIN</th>
+              <th style={customerTableHeaderStyle}>PAN</th>
+              <th style={customerTableHeaderStyle}>Status</th>
+              <th style={customerTableHeaderStyle}>Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {wholesaleApplications.map((application) => (
+              <tr
+                key={application._id}
+                style={{
+                  borderBottom: "1px solid #e2e8f0",
+                }}
+              >
+                <td style={customerTableCellStyle}>
+                  <div style={{ fontWeight: 700 }}>
+                    {application.name || "—"}
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: "#64748b",
+                      marginTop: 4,
+                    }}
+                  >
+                    {application.email || "—"}
+                  </div>
+                </td>
+
+                <td style={customerTableCellStyle}>
+                  <div style={{ fontWeight: 600 }}>
+                    {application.businessName || "—"}
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: "#64748b",
+                      marginTop: 4,
+                    }}
+                  >
+                    {application.businessType || "—"}
+                  </div>
+                </td>
+
+                <td style={customerTableCellStyle}>
+                  <div>
+                    {application.city || "—"}
+                    {application.state
+                      ? `, ${application.state}`
+                      : ""}
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: "#64748b",
+                      marginTop: 4,
+                    }}
+                  >
+                    {application.pincode || ""}
+                  </div>
+                </td>
+
+                <td style={customerTableCellStyle}>
+                  {application.gstin || "—"}
+                </td>
+
+                <td style={customerTableCellStyle}>
+                  {application.pan || "—"}
+                </td>
+
+                <td style={customerTableCellStyle}>
+                  <span
+                    style={{
+                      display: "inline-block",
+                      padding: "5px 10px",
+                      borderRadius: 999,
+                      background: "#fef3c7",
+                      color: "#92400e",
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
+                    Pending
+                  </span>
+                </td>
+
+                <td style={customerTableCellStyle}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      disabled={
+                        wholesaleActionLoading === application._id
+                      }
+                      onClick={() =>
+                        handleWholesaleApprove(application._id)
+                      }
+                      style={{
+                        border: "none",
+                        borderRadius: 8,
+                        padding: "8px 12px",
+                        background: "#16a34a",
+                        color: "#ffffff",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        opacity:
+                          wholesaleActionLoading === application._id
+                            ? 0.6
+                            : 1,
+                      }}
+                    >
+                      {wholesaleActionLoading === application._id
+                        ? "Processing..."
+                        : "Approve"}
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={
+                        wholesaleActionLoading === application._id
+                      }
+                      onClick={() =>
+                        handleWholesaleReject(application._id)
+                      }
+                      style={{
+                        border: "none",
+                        borderRadius: 8,
+                        padding: "8px 12px",
+                        background: "#dc2626",
+                        color: "#ffffff",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        opacity:
+                          wholesaleActionLoading === application._id
+                            ? 0.6
+                            : 1,
+                      }}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </div>
+) : (
+  <EmptyState
+    icon={Sparkles}
+    title={`${tab.charAt(0).toUpperCase() + tab.slice(1)} module`}
+    body="This admin section is scaffolded and ready to connect to live data once the backend API is available."
+  />
+)}
   </div>
 )}
 
