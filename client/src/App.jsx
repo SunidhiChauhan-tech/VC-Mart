@@ -1025,6 +1025,15 @@ function TopBar() {
 }
 
 function Navbar({nav, cartCount, wishlistCount, role, setRole, isLoggedIn, user, mobileOpen, setMobileOpen, searchTerm, setSearchTerm, onSearchSubmit  }) {
+  const availableRoles =
+  user?.role === "wholesale"
+    ? [
+        { id: "retail", label: "Retail" },
+        { id: "wholesale", label: "Wholesale" },
+      ]
+    : [
+        { id: "retail", label: "Retail" },
+      ];
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   return (
     <header style={{ position: "sticky", top: 0, zIndex: 40, background: "var(--surface)", borderBottom: "1px solid var(--border)" }}>
@@ -1071,12 +1080,12 @@ function Navbar({nav, cartCount, wishlistCount, role, setRole, isLoggedIn, user,
         <div className="uh-navbar-actions" style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto", flexShrink: 0 }}>
           <div style={{ position: "relative" }} className="uh-role-switch">
             <button onClick={() => setRoleMenuOpen(!roleMenuOpen)} className="uh-btn uh-btn-outline" style={{ padding: "8px 12px", fontSize: 12.5 }}>
-              {roles.find(r => r.id === role)?.label} <ChevronDown size={14} />
+              {availableRoles.find(r => r.id === role)?.label} <ChevronDown size={14} />
             </button>
             {roleMenuOpen && (
               <div className="uh-card uh-fade-in" style={{ position: "absolute", right: 0, top: "110%", width: 190, padding: 6, zIndex: 50, boxShadow: "0 10px 26px rgba(20,23,31,.14)" }}>
                 <p style={{ fontSize: 11, color: "var(--muted)", padding: "6px 8px" }}>Demo: view pricing as</p>
-                {roles.map(r => (
+                {availableRoles.map(r => (
                   <a key={r.id} onClick={() => { setRole(r.id); setRoleMenuOpen(false); }} style={{ display: "flex", justifyContent: "space-between", padding: "8px 8px", borderRadius: 6, fontSize: 13.5, fontWeight: 600, background: role === r.id ? "var(--accent-tint)" : "transparent" }}>
                     {r.label} {role === r.id && <Check size={14} color="var(--accent-dark)" />}
                   </a>
@@ -3222,6 +3231,7 @@ function AuthPage({ nav, login }) {
       email: data.user.email,
       role: data.user.role,
     });
+    
 
     nav("home");
 
@@ -4584,7 +4594,6 @@ const handleWholesaleReject = async (userId) => {
             <StatCard
               label="Wholesalers"
               value={userStatsLoading ? "…" : userStats.wholesale.toLocaleString("en-IN")}
-              sub="Currently disabled — will grow once enabled"
               icon={Boxes}
             />
 
@@ -5982,6 +5991,9 @@ useEffect(() => {
           email: currentUser.email,
           role: currentUser.role,
         });
+         setRole(currentUser.role);
+         console.log("CURRENT USER ROLE:", currentUser.role);
+  console.log("ROLE STATE SHOULD BE:", currentUser.role);
       }
     } catch (error) {
       console.error("Failed to restore user:", error);
